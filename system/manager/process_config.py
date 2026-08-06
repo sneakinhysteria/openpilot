@@ -147,7 +147,9 @@ procs = [
 
   # debug procs
   NativeProcess("bridge", "cereal/messaging", ["./bridge"], notcar),
-  PythonProcess("webrtcd", "system.webrtc.webrtcd", notcar),
+  # webrtc_stream so live view works on a car, not just the body. camerad and
+  # stream_encoderd are already gated the same way.
+  PythonProcess("webrtcd", "system.webrtc.webrtcd", or_(notcar, webrtc_stream)),
   PythonProcess("webjoystick", "tools.bodyteleop.web", notcar),
   PythonProcess("joystick", "tools.joystick.joystick_control", and_(joystick, iscar)),
 

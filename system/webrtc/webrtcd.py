@@ -18,6 +18,7 @@ from aiohttp import web
 if TYPE_CHECKING:
   from aiortc.rtcdatachannel import RTCDataChannel
 
+from openpilot.common.params import Params
 from openpilot.system.webrtc.schema import generate_field
 from cereal import messaging, log
 
@@ -193,6 +194,9 @@ class StreamSession:
     await self.stream.stop()
     if self.outgoing_bridge is not None:
       self.outgoing_bridge_runner.stop()
+    # let manager shut the camera and encoder back down, otherwise they keep
+    # running after the browser has gone
+    Params().put_bool("LiveView", False)
 
 
 @dataclass

@@ -816,6 +816,34 @@ def getNetworkMetered() -> bool:
 
 
 @dispatcher.add_method
+def startStream(sdp: str, enabled: bool = True) -> dict:
+  """Browser-offer live view, as Konik's Stable app calls it.
+
+  The device answers an offer the browser made, which is upstream's flow.
+  streamer.py's getSdp/setSdpAnswer/getIce is the older flow where the device
+  offers first; it is left alone and still works for anything using it.
+
+  `enabled` is accepted because Stable sends it, but this tree's webrtcd has no
+  notion of a paused stream, so it has no effect. Guards match streamer.py's so
+  live view cannot behave differently depending on which flow was used.
+  """
+  from openpilot.system.webrtc.helpers import StreamRequestBody, post_stream_request, wait_for_webrtcd
+
+  params = Params()
+  if params.get_bool("IsOnroad"):
+    raise Exception("Live View unavailable while onroad")
+  if not params.get_bool("LiveViewEnabled"):
+    raise Exception("Live View disabled")
+
+  # manager owns camerad, stream_encoderd and webrtcd; setting this brings them
+  # up. webrtcd clears it again when the session ends.
+  params.put_bool("LiveView", True)
+  wait_for_webrtcd()
+
+  return post_stream_request(StreamRequestBody(sdp, ["wideRoad"], [], ["carState", "deviceState"]))
+
+
+@dispatcher.add_method
 def getNetworks():
   return HARDWARE.get_networks()
 
