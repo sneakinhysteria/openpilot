@@ -230,10 +230,14 @@ V4LEncoder::V4LEncoder(const EncoderInfo &encoder_info, int in_width, int in_hei
       util::safe_ioctl(fd, VIDIOC_S_CTRL, &ctrl, "VIDIOC_S_CTRL failed");
     }
   } else {
+    // baseline forbids CABAC, so the entropy mode has to move with the profile
+    const bool baseline = encoder_settings.h264_baseline;
     struct v4l2_control ctrls[] = {
-      { .id = V4L2_CID_MPEG_VIDEO_H264_PROFILE, .value = V4L2_MPEG_VIDEO_H264_PROFILE_HIGH},
+      { .id = V4L2_CID_MPEG_VIDEO_H264_PROFILE, .value = baseline ? V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE
+                                                                  : V4L2_MPEG_VIDEO_H264_PROFILE_HIGH},
       { .id = V4L2_CID_MPEG_VIDEO_H264_LEVEL, .value = V4L2_MPEG_VIDEO_H264_LEVEL_UNKNOWN},
-      { .id = V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE, .value = V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CABAC},
+      { .id = V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE, .value = baseline ? V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CAVLC
+                                                                       : V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CABAC},
       { .id = V4L2_CID_MPEG_VIDC_VIDEO_H264_CABAC_MODEL, .value = V4L2_CID_MPEG_VIDC_VIDEO_H264_CABAC_MODEL_0},
       { .id = V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE, .value = 0},
       { .id = V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_ALPHA, .value = 0},

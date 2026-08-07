@@ -34,6 +34,13 @@ struct EncoderSettings {
   int gop_size;
   int b_frames = 0; // we don't use b frames
 
+  // Encode H264 baseline instead of high profile. Only the live view stream needs
+  // this: aiortc, which does our WebRTC, can only negotiate constrained baseline,
+  // so a high profile stream is a lie on the wire. Chrome decodes it anyway,
+  // Safari honours the negotiated profile and shows black. Recordings keep high
+  // profile, which compresses better.
+  bool h264_baseline = false;
+
   static EncoderSettings MainEncoderSettings(int in_width) {
     if (in_width <= 1344) {
       return EncoderSettings{.encode_type = MAIN_ENCODE_TYPE, .bitrate = 5'000'000, .gop_size = 20};
@@ -48,7 +55,8 @@ struct EncoderSettings {
 
   static EncoderSettings StreamEncoderSettings() {
     int _stream_bitrate = getenv("STREAM_BITRATE") ? atoi(getenv("STREAM_BITRATE")) : 1'000'000;
-    return EncoderSettings{.encode_type = cereal::EncodeIndex::Type::QCAMERA_H264, .bitrate = _stream_bitrate , .gop_size = 15};
+    return EncoderSettings{.encode_type = cereal::EncodeIndex::Type::QCAMERA_H264, .bitrate = _stream_bitrate , .gop_size = 15,
+                           .h264_baseline = true};
   }
 };
 
@@ -100,8 +108,17 @@ const EncoderInfo main_driver_encoder_info = {
   INIT_ENCODE_FUNCTIONS(DriverEncode),
 };
 
+// Live view streams are downscaled from the sensor's 1928x1208. Two reasons:
+// aiortc can only negotiate H264 level 3.1, whose ceiling is 1280x720, and the
+// stream budget is only 1 Mbit/s, which looks poor spread over full resolution.
+// 1152x720 keeps the sensor's aspect ratio and both dimensions on 16px bounds.
+#define STREAM_FRAME_WIDTH 1152
+#define STREAM_FRAME_HEIGHT 720
+
 const EncoderInfo stream_road_encoder_info = {
   .publish_name = "livestreamRoadEncodeData",
+  .frame_width = STREAM_FRAME_WIDTH,
+  .frame_height = STREAM_FRAME_HEIGHT,
   //.thumbnail_name = "thumbnail",
   .record = false,
   .get_settings = [](int){return EncoderSettings::StreamEncoderSettings();},
@@ -110,6 +127,8 @@ const EncoderInfo stream_road_encoder_info = {
 
 const EncoderInfo stream_wide_road_encoder_info = {
   .publish_name = "livestreamWideRoadEncodeData",
+  .frame_width = STREAM_FRAME_WIDTH,
+  .frame_height = STREAM_FRAME_HEIGHT,
   .record = false,
   .get_settings = [](int){return EncoderSettings::StreamEncoderSettings();},
   INIT_ENCODE_FUNCTIONS(LivestreamWideRoadEncode),
@@ -117,6 +136,8 @@ const EncoderInfo stream_wide_road_encoder_info = {
 
 const EncoderInfo stream_driver_encoder_info = {
   .publish_name = "livestreamDriverEncodeData",
+  .frame_width = STREAM_FRAME_WIDTH,
+  .frame_height = STREAM_FRAME_HEIGHT,
   .record = false,
   .get_settings = [](int){return EncoderSettings::StreamEncoderSettings();},
   INIT_ENCODE_FUNCTIONS(LivestreamDriverEncode),
